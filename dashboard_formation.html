@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Évaluation Formation — Qualiopi</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary:       #2563eb;
+  --primary-dark:  #1d4ed8;
+  --primary-light: #dbeafe;
+  --success:       #059669;
+  --success-light: #dcfce7;
+  --warning:       #d97706;
+  --warning-light: #fef3c7;
+  --danger:        #dc2626;
+  --danger-light:  #fee2e2;
+  --purple:        #7c3aed;
+  --purple-light:  #ede9fe;
+  --bg:            #f1f5f9;
+  --card:          #ffffff;
+  --border:        #e2e8f0;
+  --text:          #1e293b;
+  --text-muted:    #64748b;
+  --promoter:      #22c55e;
+  --passive:       #f59e0b;
+  --detractor:     #ef4444;
+  --radius:        12px;
+  --shadow:        0 1px 6px rgba(0,0,0,0.07);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── HEADER ── */
+.header {
+  background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+  color: #fff; padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25); position: sticky; top: 0; z-index: 100;
+}
+.header-left h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -.3px; }
+.header-left p  { font-size: .78rem; opacity: .75; margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.badge-file {
+  background: rgba(255,255,255,.18); border-radius: 20px;
+  padding: 4px 14px; font-size: .78rem; max-width: 260px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.btn-secondary {
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3);
+  color: #fff; border-radius: 8px; padding: 7px 14px;
+  font-size: .82rem; cursor: pointer; font-weight: 600; transition: background .15s;
+}
+.btn-secondary:hover { background: rgba(255,255,255,.3); }
+
+/* ── UPLOAD ── */
+#upload-zone {
+  display: flex; align-items: center; justify-content: center;
+  min-height: calc(100vh - 60px); padding: 32px;
+}
+.upload-card {
+  background: var(--card); border: 2px dashed var(--border);
+  border-radius: 20px; padding: 56px 72px; text-align: center;
+  cursor: pointer; transition: all .2s; max-width: 540px; width: 100%;
+}
+.upload-card:hover, .upload-card.drag-over {
+  border-color: var(--primary); background: var(--primary-light);
+}
+.upload-icon { font-size: 72px; line-height: 1; margin-bottom: 20px; }
+.upload-card h2 { font-size: 1.3rem; margin-bottom: 8px; }
+.upload-card p { color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
+.btn-primary {
+  background: var(--primary); color: #fff; border: none;
+  padding: 12px 28px; border-radius: 10px; font-size: 1rem;
+  cursor: pointer; font-weight: 700; transition: background .15s;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+.upload-hint { margin-top: 14px; font-size: .78rem; color: var(--text-muted); }
+#file-input { display: none; }
+
+/* ── DASHBOARD SHELL ── */
+#dashboard { display: none; padding: 20px 24px 40px; max-width: 1400px; margin: 0 auto; }
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  background: var(--card); border-radius: var(--radius);
+  padding: 14px 20px; margin-bottom: 20px;
+  display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+  box-shadow: var(--shadow);
+}
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-group label { font-size: .75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+.filter-group select {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; font-size: .88rem; background: var(--bg);
+  color: var(--text); cursor: pointer; min-width: 190px;
+  appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+}
+.filter-group input[type="search"] {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; font-size: .88rem; background: var(--bg);
+  color: var(--text); min-width: 190px;
+}
+.filter-group input[type="search"]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.filter-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+/* Menu multi-sélection (cases à cocher) */
+.multiselect { position: relative; }
+.multiselect-toggle {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 28px 8px 12px; font-size: .88rem; background: var(--bg);
+  color: var(--text); cursor: pointer; min-width: 190px; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.multiselect-toggle:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.multiselect.open .multiselect-toggle { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.multiselect-panel {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow); padding: 6px; min-width: 100%; max-height: 260px;
+  overflow-y: auto;
+}
+.multiselect.open .multiselect-panel { display: block; }
+.multiselect-opt {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px;
+  font-size: .88rem; color: var(--text); cursor: pointer; white-space: nowrap;
+}
+.multiselect-opt:hover { background: var(--bg); }
+.multiselect-opt input { cursor: pointer; accent-color: var(--primary); margin: 0; }
+.filter-actions { display: flex; align-items: flex-end; gap: 8px; margin-left: auto; }
+.btn-reset {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 14px; cursor: pointer; font-size: .82rem; color: var(--text-muted);
+  font-weight: 600; transition: all .15s;
+}
+.btn-reset:hover { background: #e2e8f0; color: var(--text); }
+.results-badge {
+  font-size: .82rem; font-weight: 700; padding: 8px 14px;
+  background: var(--primary-light); color: var(--primary);
+  border-radius: 8px; white-space: nowrap;
+}
+
+/* ── KPI ROW ── */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.kpi-card {
+  background: var(--card); border-radius: var(--radius); padding: 18px 20px;
+  box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px;
+}
+.kpi-icon {
+  width: 50px; height: 50px; border-radius: 12px; display: flex;
+  align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0;
+}
+.kpi-icon.blue   { background: var(--primary-light); }
+.kpi-icon.green  { background: var(--success-light); }
+.kpi-icon.amber  { background: var(--warning-light); }
+.kpi-icon.purple { background: var(--purple-light); }
+.kpi-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+.kpi-label { font-size: .78rem; color: var(--text-muted); margin-top: 4px; font-weight: 600; }
+.kpi-sub   { font-size: .72rem; color: var(--text-muted); margin-top: 2px; }
+
+/* ── CHART GRID ── */
+.chart-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.chart-card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 20px; box-shadow: var(--shadow);
+}
+.chart-card h3 { font-size: .95rem; font-weight: 800; color: var(--text); }
+.chart-subtitle { font-size: .78rem; color: var(--text-muted); margin: 4px 0 16px; }
+.chart-container { position: relative; }
+
+/* ── NPS ── */
+.nps-big-score { text-align: center; margin-bottom: 12px; }
+.nps-number { font-size: 3.5rem; font-weight: 900; line-height: 1; }
+.nps-label  { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
+.nps-breakdown { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+.nps-pill { padding: 5px 12px; border-radius: 20px; font-size: .78rem; font-weight: 700; }
+.nps-pill.promoter  { background: var(--success-light); color: #166534; }
+.nps-pill.passive   { background: var(--warning-light); color: #92400e; }
+.nps-pill.detractor { background: var(--danger-light);  color: #991b1b; }
+
+/* ── SATISFACTION LEGEND ── */
+.sat-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--text-muted); font-weight: 600; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+/* ── WORD CLOUD ── */
+.section-card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px;
+}
+.section-card h3 { font-size: .95rem; font-weight: 800; }
+.section-card .chart-subtitle { font-size: .78rem; color: var(--text-muted); margin: 4px 0 16px; }
+#wordCloudCanvas { width: 100%; border-radius: 8px; background: #f8fafc; display: block; }
+
+/* ── COMMENTS ── */
+.comments-grid { display: flex; flex-direction: column; gap: 0; }
+.comment-item { border-bottom: 1px solid var(--border); padding: 12px 0; }
+.comment-item:last-child { border-bottom: none; }
+.comment-meta { font-size: .75rem; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; }
+.comment-text { font-size: .88rem; line-height: 1.65; color: var(--text); }
+.comment-quote {
+  border-left: 3px solid var(--primary-light); padding-left: 12px;
+  font-size: .88rem; line-height: 1.65; color: var(--text); font-style: italic;
+}
+/* Coloration des commentaires selon la note NPS */
+.comment-nps {
+  display: inline-block; padding: 1px 9px; border-radius: 10px;
+  font-size: .7rem; font-weight: 700; margin-left: 8px;
+}
+.comment-item.promoter  .comment-quote { border-left-color: var(--promoter);  background: #f0fdf4; border-radius: 0 8px 8px 0; padding: 8px 12px; }
+.comment-item.passive   .comment-quote { border-left-color: var(--passive);   background: #fffbeb; border-radius: 0 8px 8px 0; padding: 8px 12px; }
+.comment-item.detractor .comment-quote { border-left-color: var(--detractor); background: #fef2f2; border-radius: 0 8px 8px 0; padding: 8px 12px; }
+.comment-item.promoter  .comment-nps { background: var(--success-light); color: #166534; }
+.comment-item.passive   .comment-nps { background: var(--warning-light); color: #92400e; }
+.comment-item.detractor .comment-nps { background: var(--danger-light);  color: #991b1b; }
+
+/* ── TRAINER CARDS ── */
+.trainer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+.trainer-card {
+  background: #f8fafc; border: 1px solid var(--border);
+  border-left: 4px solid var(--primary); border-radius: 10px; padding: 16px;
+}
+.trainer-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; gap: 10px; }
+.trainer-name { font-weight: 800; font-size: .92rem; color: var(--text); }
+.trainer-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.trainer-badge {
+  padding: 3px 10px; border-radius: 20px; font-size: .72rem; font-weight: 700;
+  background: var(--primary-light); color: var(--primary);
+}
+.trainer-badge.green { background: var(--success-light); color: #166534; }
+.trainer-comment { font-size: .85rem; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+
+/* ── NO DATA ── */
+.no-data { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+.no-data .no-icon { font-size: 40px; margin-bottom: 10px; }
+.no-data p { font-size: .88rem; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 960px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .chart-row-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .kpi-row { grid-template-columns: 1fr; }
+  #dashboard { padding: 12px; }
+  .upload-card { padding: 40px 24px; }
+  .filter-bar { flex-direction: column; }
+  .filter-actions { margin-left: 0; width: 100%; }
+}
+
+/* ── LOGO ── */
+#logo-img    { height: 46px; object-fit: contain; background: #fff; border-radius: 8px; padding: 3px 8px; }
+#logo-input  { display: none; }
+.btn-logo    { background: rgba(255,255,255,.15); border: 1px dashed rgba(255,255,255,.5);
+               color: #fff; border-radius: 8px; padding: 6px 12px;
+               font-size: .75rem; cursor: pointer; transition: background .15s; }
+.btn-logo:hover { background: rgba(255,255,255,.3); }
+
+/* ── EXPORT PDF ── */
+.btn-pdf { background: #fff; color: var(--primary); border: none;
+           border-radius: 8px; padding: 7px 14px; font-size: .82rem;
+           cursor: pointer; font-weight: 700; transition: all .15s;
+           display: flex; align-items: center; gap: 6px; }
+.btn-pdf:hover { background: var(--primary-light); }
+
+/* ── DIALOGUE D'EXPORT ── */
+.exp-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(15,23,42,.5);
+               align-items: center; justify-content: center; padding: 16px; }
+.exp-overlay.open { display: flex; }
+.exp-modal { background: var(--card); border-radius: 16px; padding: 24px 26px 20px; width: min(500px, 100%);
+             max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+.exp-modal h2 { font-size: 1.15rem; font-weight: 800; }
+.exp-lead { color: var(--text-muted); font-size: .86rem; margin: 4px 0 10px; }
+.exp-tools { display: flex; gap: 14px; margin-bottom: 8px; }
+.exp-link { background: none; border: none; color: var(--primary); font-size: .8rem; font-weight: 700; cursor: pointer; padding: 0; }
+.exp-link:hover { text-decoration: underline; }
+.exp-list { display: flex; flex-direction: column; gap: 6px; }
+.exp-opt { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid var(--border);
+           border-radius: 10px; cursor: pointer; transition: all .12s; }
+.exp-opt:hover { background: var(--bg); }
+.exp-opt:has(input:checked) { border-color: var(--primary); background: var(--primary-light); }
+.exp-opt input { width: 17px; height: 17px; accent-color: var(--primary); cursor: pointer; flex-shrink: 0; }
+.exp-opt b { display: block; font-size: .88rem; }
+.exp-opt small { display: block; font-size: .75rem; color: var(--text-muted); margin-top: 1px; }
+.exp-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.exp-go { padding: 10px 22px; font-size: .9rem; }
+.exp-go:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── RAPPORT PDF (mise en page A4 dédiée) ── */
+#print-report { display: none; }
+
+@page {
+  size: A4;
+  margin: 13mm 12mm 17mm 12mm;
+  @bottom-left {
+    content: "Rapport d'évaluation des formations · Qualiopi";
+    font: 8pt 'Segoe UI', Arial, sans-serif; color: #94a3b8;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " / " counter(pages);
+    font: 8pt 'Segoe UI', Arial, sans-serif; color: #94a3b8;
+  }
+}
+
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  html, body { background: #fff !important; min-height: 0 !important; }
+  body > *:not(#print-report) { display: none !important; }
+
+  #print-report {
+    display: block; color: var(--text);
+    font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+    font-size: 9.5pt; line-height: 1.45;
+  }
+  #print-report * { box-sizing: border-box; }
+
+  /* Bandeau de titre */
+  .pr-cover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
+    color: #fff; border-radius: 12px; padding: 18px 22px 16px;
+    break-inside: avoid;
+  }
+  .pr-cover-top { display: flex; align-items: center; gap: 16px; }
+  .pr-logo { background: #fff; border-radius: 8px; padding: 6px 8px; display: flex; align-items: center; }
+  .pr-logo img { height: 46px; max-width: 130px; object-fit: contain; display: block; }
+  .pr-titles { flex: 1; }
+  .pr-eyebrow { font-size: 7.5pt; letter-spacing: 1.6px; text-transform: uppercase; opacity: .8; font-weight: 700; }
+  .pr-cover h1 { font-size: 21pt; font-weight: 800; letter-spacing: -.4px; line-height: 1.15; margin: 2px 0 3px; }
+  .pr-sub { font-size: 9pt; opacity: .85; }
+  .pr-date { text-align: right; font-size: 8.5pt; opacity: .9; white-space: nowrap; }
+  .pr-date b { display: block; font-size: 7.5pt; letter-spacing: 1px; text-transform: uppercase; opacity: .75; }
+  .pr-chips { margin-top: 13px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .pr-chip {
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3);
+    border-radius: 20px; padding: 3px 11px; font-size: 8pt;
+  }
+  .pr-chip b { opacity: .75; font-weight: 600; margin-right: 5px; }
+
+  /* Indicateurs clés */
+  .pr-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+  .pr-kpi {
+    border: 1px solid var(--border); border-top: 3px solid var(--primary);
+    border-radius: 9px; padding: 10px 12px; break-inside: avoid; background: #fff;
+  }
+  .pr-kpi-val { font-size: 21pt; font-weight: 800; line-height: 1.05; }
+  .pr-kpi-label { font-size: 8pt; font-weight: 700; color: var(--text); margin-top: 4px; }
+  .pr-kpi-sub { font-size: 7.5pt; color: var(--text-muted); margin-top: 1px; min-height: 1em; }
+
+  /* Lecture rapide */
+  .pr-insights {
+    background: #f8fafc; border: 1px solid var(--border); border-left: 4px solid var(--primary);
+    border-radius: 9px; padding: 10px 14px; margin-bottom: 12px; break-inside: avoid;
+  }
+  .pr-insights h3 { font-size: 8pt; text-transform: uppercase; letter-spacing: 1.2px; color: var(--primary); margin-bottom: 4px; }
+  .pr-insights ul { list-style: none; }
+  .pr-insights li { padding-left: 13px; position: relative; margin: 2px 0; font-size: 9pt; }
+  .pr-insights li::before { content: ""; position: absolute; left: 0; top: .5em; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+
+  /* Titres de section */
+  .pr-h2 {
+    display: flex; align-items: center; gap: 9px; font-size: 12.5pt; font-weight: 800;
+    margin: 16px 0 8px; break-after: avoid; color: var(--text);
+  }
+  .pr-h2 .pr-num {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 9pt; font-weight: 800;
+  }
+  .pr-h2 .pr-count { margin-left: auto; font-size: 8pt; font-weight: 700; color: var(--primary); background: var(--primary-light); border-radius: 20px; padding: 2px 10px; }
+  .pr-pagebreak { break-before: page; }
+  .pr-pagebreak .pr-h2:first-child { margin-top: 0; }
+  .pr-pagebreak { padding-top: 0; }
+
+  .pr-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
+  .pr-card {
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+    background: #fff; break-inside: avoid; margin-bottom: 10px;
+  }
+  .pr-grid2 .pr-card { margin-bottom: 0; }
+  .pr-grid2.single { grid-template-columns: 1fr; }
+  .pr-card h3 { font-size: 10pt; font-weight: 800; }
+  .pr-card .pr-card-sub { font-size: 8pt; color: var(--text-muted); margin: 2px 0 9px; }
+
+  /* NPS */
+  .pr-nps-head { display: flex; align-items: center; gap: 12px; }
+  .pr-nps-score { font-size: 40pt; font-weight: 900; line-height: 1; }
+  .pr-verdict { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 8.5pt; font-weight: 800; }
+  .pr-nps-formula { font-size: 7.5pt; color: var(--text-muted); margin-top: 4px; }
+  .pr-stack { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #e2e8f0; margin: 14px 0 10px; }
+  .pr-stack span { display: block; height: 100%; }
+  .pr-nps-boxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .pr-nps-box { border-radius: 8px; padding: 7px 8px; text-align: center; }
+  .pr-nps-box b { display: block; font-size: 15pt; font-weight: 800; line-height: 1.1; }
+  .pr-nps-box span { display: block; font-size: 7.5pt; font-weight: 700; }
+  .pr-nps-box .pr-pc { font-weight: 600; opacity: .8; }
+  .pr-nps-box.prom { background: var(--success-light); color: #166534; }
+  .pr-nps-box.pass { background: var(--warning-light); color: #92400e; }
+  .pr-nps-box.detr { background: var(--danger-light);  color: #991b1b; }
+
+  /* Graphiques */
+  .pr-chart-img { width: 100%; height: auto; display: block; }
+  .pr-delta { text-align: center; font-size: 8.5pt; color: var(--text-muted); margin-top: 8px; }
+  .pr-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+  .pr-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 7.5pt; font-weight: 600; color: var(--text-muted); }
+  .pr-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  /* Tableau satisfaction */
+  .pr-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 8.5pt; }
+  .pr-table th {
+    text-align: left; font-size: 7pt; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--text-muted); background: #f8fafc; padding: 5px 8px; border-bottom: 1px solid var(--border);
+  }
+  .pr-table td { padding: 6px 8px; border-bottom: 1px solid #eef2f7; }
+  .pr-table tr:last-child td { border-bottom: none; }
+  .pr-table .num { text-align: center; font-weight: 700; }
+  .pr-bar { display: flex; align-items: center; gap: 7px; }
+  .pr-bar-track { flex: 1; height: 6px; border-radius: 3px; background: #e2e8f0; overflow: hidden; }
+  .pr-bar-fill { height: 100%; border-radius: 3px; background: var(--promoter); }
+  .pr-bar em { font-style: normal; font-weight: 700; min-width: 30px; text-align: right; }
+
+  /* Nuage de mots */
+  .pr-cloud { background: #f8fafc; border-radius: 8px; padding: 4px; }
+
+  /* Commentaires */
+  .pr-comment { break-inside: avoid; margin-bottom: 7px; }
+  .pr-comment-meta { font-size: 7.5pt; font-weight: 700; color: var(--text-muted); margin-bottom: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .pr-comment-quote {
+    border-left: 3px solid var(--primary-light); background: #f8fafc; border-radius: 0 8px 8px 0;
+    padding: 6px 11px; font-style: italic; font-size: 9pt; line-height: 1.5; white-space: pre-wrap;
+  }
+  .pr-pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 7pt; font-weight: 800; }
+  .pr-comment.promoter  .pr-comment-quote { border-left-color: var(--promoter);  background: #f0fdf4; }
+  .pr-comment.passive   .pr-comment-quote { border-left-color: var(--passive);   background: #fffbeb; }
+  .pr-comment.detractor .pr-comment-quote { border-left-color: var(--detractor); background: #fef2f2; }
+  .pr-comment.promoter  .pr-pill { background: var(--success-light); color: #166534; }
+  .pr-comment.passive   .pr-pill { background: var(--warning-light); color: #92400e; }
+  .pr-comment.detractor .pr-pill { background: var(--danger-light);  color: #991b1b; }
+
+  /* Comptes-rendus formateurs */
+  .pr-trainer {
+    background: #f8fafc; border: 1px solid var(--border); border-left: 4px solid var(--primary);
+    border-radius: 9px; padding: 9px 12px; margin-bottom: 8px;
+  }
+  .pr-trainer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  .pr-trainer-name { font-weight: 800; font-size: 9.5pt; }
+  .pr-badge { display: inline-block; padding: 1px 9px; border-radius: 20px; font-size: 7.5pt; font-weight: 700; background: var(--primary-light); color: var(--primary); margin-left: 4px; }
+  .pr-badge.green { background: var(--success-light); color: #166534; }
+  .pr-trainer-text { font-size: 9pt; line-height: 1.55; white-space: pre-wrap; }
+
+  .pr-empty { color: var(--text-muted); font-style: italic; font-size: 9pt; padding: 6px 0; }
+  .pr-end { margin-top: 14px; text-align: center; font-size: 7.5pt; color: #94a3b8; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════ -->
+<input type="file" id="logo-input" accept="image/*">
+<div class="header">
+  <div class="header-left" style="display:flex;align-items:center;gap:14px;">
+    <img id="logo-img" src="" alt="Logo" style="display:none;">
+    <div>
+      <h1>📊 Dashboard Évaluation Formation</h1>
+      <p>Analyse qualité — Conformité Qualiopi</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="btn-logo" onclick="document.getElementById('logo-input').click()" title="Charger le logo">🖼️ Logo</button>
+    <span class="badge-file" id="badge-file" style="display:none"></span>
+    <button class="btn-secondary" id="btn-change-file" style="display:none"
+      onclick="document.getElementById('file-input').click()">📂 Changer de fichier</button>
+    <button class="btn-pdf" id="btn-export-pdf" style="display:none" onclick="exportPDF()">🖨️ Exporter PDF</button>
+  </div>
+</div>
+<input type="file" id="file-input" accept=".xlsx,.xls">
+
+<!-- ══ UPLOAD ════════════════════════════════════════════════ -->
+<div id="upload-zone">
+  <div class="upload-card" id="drop-zone">
+    <div class="upload-icon">📂</div>
+    <h2>Importer votre fichier Excel</h2>
+    <p>Glissez-déposez votre fichier ici, ou cliquez pour parcourir.<br>
+       Compatible avec tous les exports du formulaire d'évaluation.</p>
+    <button class="btn-primary" onclick="document.getElementById('file-input').click()">
+      Sélectionner un fichier
+    </button>
+    <p class="upload-hint">Formats acceptés : .xlsx · .xls</p>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ═════════════════════════════════════════════ -->
+<div id="dashboard">
+
+  <!-- FILTRES -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>N° de session</label>
+      <div class="multiselect" id="ms-session">
+        <button type="button" class="multiselect-toggle" id="ms-session-toggle"
+                onclick="toggleMultiselect(event)">Toutes les sessions</button>
+        <div class="multiselect-panel" id="ms-session-panel"></div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Intitulé de la formation</label>
+      <select id="f-formation"><option value="">Toutes les formations</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Thématique</label>
+      <select id="f-thematique"><option value="">Toutes les thématiques</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="q-session">Rechercher un n° de session</label>
+      <input type="search" id="q-session" placeholder="ex : 1234 ou 1234, 1250" autocomplete="off">
+    </div>
+    <div class="filter-group">
+      <label for="q-formation">Rechercher une formation</label>
+      <input type="search" id="q-formation" placeholder="mot(s) de l'intitulé" autocomplete="off">
+    </div>
+    <div class="filter-actions">
+      <button class="btn-reset" onclick="resetFilters()">✕ Réinitialiser</button>
+      <div class="results-badge" id="results-badge">-- réponses</div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-icon blue">👥</div>
+      <div>
+        <div class="kpi-value" id="kpi-n">--</div>
+        <div class="kpi-label">Réponses participants</div>
+        <div class="kpi-sub" id="kpi-n-sub"></div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon green">🎯</div>
+      <div>
+        <div class="kpi-value" id="kpi-nps">--</div>
+        <div class="kpi-label">Score NPS</div>
+        <div class="kpi-sub" id="kpi-nps-sub"></div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon amber">📈</div>
+      <div>
+        <div class="kpi-value" id="kpi-comp">--%</div>
+        <div class="kpi-label">Ont progressé en compétences</div>
+        <div class="kpi-sub" id="kpi-comp-sub"></div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon purple">⭐</div>
+      <div>
+        <div class="kpi-value" id="kpi-sat">--/5</div>
+        <div class="kpi-label">Satisfaction moyenne globale</div>
+        <div class="kpi-sub">Animation · Contenu · Logistique · Accueil</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NPS + COMPÉTENCES -->
+  <div class="chart-row-2">
+
+    <div class="chart-card">
+      <h3>🎯 Net Promoter Score</h3>
+      <div class="chart-subtitle">Recommanderiez-vous cette formation à un collègue ? (0–10)</div>
+      <div class="nps-big-score">
+        <div class="nps-number" id="nps-big">--</div>
+        <div class="nps-label">Score NPS (Promoteurs % − Détracteurs %)</div>
+      </div>
+      <div class="chart-container" style="max-width:260px; margin:0 auto;">
+        <canvas id="npsChart" height="220"></canvas>
+      </div>
+      <div class="nps-breakdown" id="nps-breakdown"></div>
+    </div>
+
+    <div class="chart-card">
+      <h3>📈 Progression des compétences</h3>
+      <div class="chart-subtitle">Niveau auto-évalué avant et après la formation (échelle 1 à 5)</div>
+      <div class="chart-container" style="height:290px;">
+        <canvas id="compChart"></canvas>
+      </div>
+      <div id="comp-delta" style="text-align:center; margin-top:10px; font-size:.85rem; color:var(--text-muted);"></div>
+    </div>
+
+  </div>
+
+  <!-- SATISFACTION PAR CRITÈRE -->
+  <div class="chart-card" style="margin-bottom:20px;">
+    <h3>⭐ Satisfaction par critère</h3>
+    <div class="chart-subtitle">Distribution des niveaux de satisfaction pour chaque critère évalué</div>
+    <div class="sat-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Très satisfaisant</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>Satisfaisant</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Peu satisfaisant</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div>Insatisfaisant</div>
+    </div>
+    <div class="chart-container" style="height:260px;">
+      <canvas id="satChart"></canvas>
+    </div>
+  </div>
+
+  <!-- NUAGE DE MOTS -->
+  <div class="section-card">
+    <h3>☁️ Nuage de mots — Commentaires participants</h3>
+    <div class="chart-subtitle">Termes les plus fréquents dans les retours libres des participants</div>
+    <canvas id="wordCloudCanvas"></canvas>
+  </div>
+
+  <!-- COMMENTAIRES PARTICIPANTS -->
+  <div class="section-card">
+    <h3>💬 Commentaires des participants</h3>
+    <div class="chart-subtitle">Tops, Flops, Coups de cœur</div>
+    <div id="comments-list"></div>
+  </div>
+
+  <!-- COMPTE-RENDUS FORMATEURS -->
+  <div class="section-card">
+    <h3>📋 Compte-rendus formateurs</h3>
+    <div class="chart-subtitle">Retours des formateurs pour les sessions concernées</div>
+    <div class="trainer-grid" id="trainer-grid"></div>
+  </div>
+
+</div><!-- /dashboard -->
+
+<!-- Rapport PDF (rempli à l'export, visible uniquement à l'impression) -->
+<div id="print-report"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  COLONNE MAPPING  (noms normalisés après remplacement \xa0)
+// ═══════════════════════════════════════════════════════════
+const C = {
+  id:           'ID',
+  debut:        'Heure de début',
+  nom:          'Indiquez votre Nom et Prénom (en majuscule)',
+  session:      'Indiquez ci-dessous le n° de la session',
+  formation:    "Indiquez ci-dessous l'intitulé exact de votre formation",
+  modalites:    'Les modalités de la formation',
+  thematique:   'Dans quelle thématique, se trouve la formation que vous venez de suivre?',
+  augmentation: "Cette formation vous-a-t-elle permis d'augmenter vos compétences / connaissances ?",
+  avant:        'Estimez, AVANT cette formation, votre niveau de compétence sur la thématique abordée ?',
+  apres:        'Estimez, APRES cette formation, votre niveau de compétence sur la thématique abordée ?',
+  logistique:   'Logistique (convocation, information, teams...)',
+  animation:    'Animation (formateur, pédagogie utilisée...)',
+  contenu:      'Contenu de la formation',
+  outils:       'Pour les formations à distance, les outils utilisés',
+  accueil:      "Pour les formations en présentiel, l'accueil, les repas, les pauses, les salles...",
+  nps:          'Recommanderiez-vous cette formation à un collègue ?',
+  comments:     'Vos commentaires (Tops, Flops, Coup de cœur...)',
+  formateur:    'Commentaires Formateurs',
+  remarques:    'Avez vous des remarques à faire remonter ?',
+};
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let ALL = [];
+let CHARTS = {};
+
+// ═══════════════════════════════════════════════════════════
+//  FILE UPLOAD
+// ═══════════════════════════════════════════════════════════
+const fileInput = document.getElementById('file-input');
+const dropZone  = document.getElementById('drop-zone');
+
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb   = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const raw  = XLSX.utils.sheet_to_json(ws, { defval: null });
+
+    // Normalise column names: replace non-breaking spaces, trim
+    ALL = raw.map(row => {
+      const out = {};
+      for (const [k, v] of Object.entries(row)) {
+        out[k.replace(/ /g, ' ').trim()] = v;
+      }
+      return out;
+    });
+
+    document.getElementById('upload-zone').style.display   = 'none';
+    document.getElementById('dashboard').style.display     = 'block';
+    document.getElementById('badge-file').style.display    = 'inline';
+    document.getElementById('badge-file').textContent      = '📄 ' + file.name;
+    document.getElementById('btn-change-file').style.display = 'block';
+    document.getElementById('btn-export-pdf').style.display = 'flex';
+
+    autoDetectCols(ALL);
+    populateFilters();
+    renderAll();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FILTERS
+// ═══════════════════════════════════════════════════════════
+function populateFilters() {
+  const sessions    = uniq(ALL.map(r => r[C.session])).sort((a, b) => +a - +b || String(a).localeCompare(String(b)));
+  const formations  = uniq(ALL.map(r => r[C.formation])).sort();
+  const thematiques = uniq(ALL.map(r => r[C.thematique])).sort();
+
+  buildSessionMultiselect(sessions);
+  fillSel('f-formation',  formations);
+  fillSel('f-thematique', thematiques);
+
+  ['f-formation','f-thematique'].forEach(id =>
+    document.getElementById(id).addEventListener('change', renderAll)
+  );
+  ['q-session','q-formation'].forEach(id =>
+    document.getElementById(id).addEventListener('input', renderAll)
+  );
+}
+
+// ── Menu sessions à cases à cocher ──────────────────────────
+function buildSessionMultiselect(sessions) {
+  const panel = document.getElementById('ms-session-panel');
+  panel.innerHTML = '';
+  sessions.forEach(v => {
+    const lab = document.createElement('label');
+    lab.className = 'multiselect-opt';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = v;
+    cb.addEventListener('change', () => { updateSessionLabel(); renderAll(); });
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(' Session ' + v));
+    panel.appendChild(lab);
+  });
+  updateSessionLabel();
+}
+
+function getSelectedSessions() {
+  return [...document.querySelectorAll('#ms-session-panel input:checked')].map(cb => cb.value);
+}
+
+function updateSessionLabel() {
+  const sel = getSelectedSessions();
+  const btn = document.getElementById('ms-session-toggle');
+  btn.textContent = sel.length === 0 ? 'Toutes les sessions'
+    : sel.length === 1 ? 'Session ' + sel[0]
+    : sel.length + ' sessions sélectionnées';
+}
+
+function toggleMultiselect(e) {
+  e.stopPropagation();
+  document.getElementById('ms-session').classList.toggle('open');
+}
+
+// Ferme le menu en cliquant ailleurs
+document.addEventListener('click', e => {
+  const ms = document.getElementById('ms-session');
+  if (ms && !ms.contains(e.target)) ms.classList.remove('open');
+});
+
+function uniq(arr) { return [...new Set(arr.filter(v => v !== null && v !== undefined && v !== ''))]; }
+
+function fillSel(id, values) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Tout</option>';
+  values.forEach(v => {
+    const o = document.createElement('option');
+    o.value = o.textContent = v;
+    sel.appendChild(o);
+  });
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+
+function getFilters() {
+  return {
+    session:    getSelectedSessions(),
+    formation:  document.getElementById('f-formation').value,
+    thematique: document.getElementById('f-thematique').value,
+    qSession:   document.getElementById('q-session').value.trim(),
+    qFormation: document.getElementById('q-formation').value.trim(),
+  };
+}
+
+// ── Recherche texte (insensible à la casse et aux accents) ──
+function normTxt(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+// N° de session : un ou plusieurs numéros séparés par , ; ou espace (correspondance partielle)
+function matchSessionQuery(sessionVal, q) {
+  if (!q) return true;
+  const tokens = normTxt(q).split(/[\s,;]+/).filter(Boolean);
+  const s = normTxt(sessionVal);
+  return tokens.some(t => s.includes(t));
+}
+// Intitulé : tous les mots saisis doivent apparaître dans l'intitulé
+function matchFormationQuery(formationVal, q) {
+  if (!q) return true;
+  const f = normTxt(formationVal);
+  return normTxt(q).split(/\s+/).filter(Boolean).every(t => f.includes(t));
+}
+
+function resetFilters() {
+  document.querySelectorAll('#ms-session-panel input:checked').forEach(cb => cb.checked = false);
+  updateSessionLabel();
+  ['f-formation','f-thematique','q-session','q-formation'].forEach(id => document.getElementById(id).value = '');
+  renderAll();
+}
+
+function applyFilters(data) {
+  const f = getFilters();
+  const sessSet = new Set(f.session.map(String));
+  return data.filter(r => {
+    if (sessSet.size && !sessSet.has(String(r[C.session])))               return false;
+    if (f.formation  && r[C.formation]         !== f.formation)           return false;
+    if (f.thematique && r[C.thematique]        !== f.thematique)          return false;
+    if (!matchSessionQuery(r[C.session], f.qSession))                     return false;
+    if (!matchFormationQuery(r[C.formation], f.qFormation))               return false;
+    return true;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════
+function isTrainer(r) { return r[C.thematique] === 'Compte Rendu Formateur'; }
+
+function parseRating(val) {
+  if (val === null || val === undefined || val === '') return null;
+  const s = String(val).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (s.includes('tres satisfaisant') || s.includes('tres satisfaisante')) return 5;
+  if (s.includes('satisfaisant') && !s.includes('peu') && !s.includes('insatisfaisant')) return 4;
+  if (s.includes('peu satisfaisant')) return 3;
+  if (s.includes('insatisfaisant') || s.includes('pas satisfaisant')) return 2;
+  if (s.includes('non concerne') || s.includes('non concerné')) return null;
+  return null;
+}
+
+function avg(arr) {
+  const v = arr.filter(x => x !== null && !isNaN(x));
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+
+function fmtAvg(v, decimals = 1) { return v !== null ? v.toFixed(decimals) : 'N/A'; }
+
+function fmtDate(v) {
+  if (!v) return '';
+  const d = v instanceof Date ? v : new Date(v);
+  return isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MAIN RENDER
+// ═══════════════════════════════════════════════════════════
+function renderAll() {
+  const filtered     = applyFilters(ALL);
+  const participants = filtered.filter(r => !isTrainer(r));
+
+  document.getElementById('results-badge').textContent =
+    participants.length + ' participant' + (participants.length > 1 ? 's' : '');
+
+  renderKPIs(participants);
+  renderNPS(participants);
+  renderCompetence(participants);
+  renderSatisfaction(participants);
+  renderWordCloud(participants);
+  renderComments(participants);
+  renderTrainers(filtered);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  KPIs
+// ═══════════════════════════════════════════════════════════
+function renderKPIs(data) {
+  // Réponses
+  document.getElementById('kpi-n').textContent = data.length;
+  document.getElementById('kpi-n-sub').textContent =
+    data.length ? 'Sur ' + ALL.filter(r => !isTrainer(r)).length + ' au total' : '';
+
+  // NPS
+  const npsVals = data.map(r => parseFloat(r[C.nps])).filter(v => !isNaN(v));
+  if (npsVals.length) {
+    const prom = npsVals.filter(v => v >= 9).length;
+    const detr = npsVals.filter(v => v <= 6).length;
+    const nps  = Math.round((prom / npsVals.length - detr / npsVals.length) * 100);
+    const el   = document.getElementById('kpi-nps');
+    el.textContent = (nps > 0 ? '+' : '') + nps;
+    el.style.color = nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--warning)' : 'var(--danger)';
+    document.getElementById('kpi-nps-sub').textContent = npsVals.length + ' réponse' + (npsVals.length > 1 ? 's' : '');
+  } else {
+    document.getElementById('kpi-nps').textContent = 'N/A';
+    document.getElementById('kpi-nps').style.color = 'var(--text-muted)';
+    document.getElementById('kpi-nps-sub').textContent = '';
+  }
+
+  // Compétences
+  const augAll = data.filter(r => r[C.augmentation]);
+  const augOui = augAll.filter(r => String(r[C.augmentation]).toUpperCase().includes('OUI')).length;
+  if (augAll.length) {
+    document.getElementById('kpi-comp').textContent = Math.round(augOui / augAll.length * 100) + '%';
+    document.getElementById('kpi-comp-sub').textContent = augOui + '/' + augAll.length + ' participants';
+  } else {
+    document.getElementById('kpi-comp').textContent = 'N/A';
+    document.getElementById('kpi-comp-sub').textContent = '';
+  }
+
+  // Satisfaction
+  const crits = [C.logistique, C.animation, C.contenu, C.accueil, C.outils];
+  const rats  = data.flatMap(r => crits.map(c => parseRating(r[c]))).filter(v => v !== null);
+  const avgSat = avg(rats);
+  document.getElementById('kpi-sat').textContent = avgSat !== null ? fmtAvg(avgSat) + '/5' : 'N/A';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NPS CHART
+// ═══════════════════════════════════════════════════════════
+function renderNPS(data) {
+  const scores = data.map(r => parseFloat(r[C.nps])).filter(v => !isNaN(v));
+  const n = scores.length;
+  const prom = scores.filter(v => v >= 9).length;
+  const pass = scores.filter(v => v === 7 || v === 8).length;
+  const detr = scores.filter(v => v <= 6).length;
+  const nps  = n > 0 ? Math.round((prom / n - detr / n) * 100) : null;
+
+  const bigEl = document.getElementById('nps-big');
+  bigEl.textContent = nps !== null ? (nps > 0 ? '+' : '') + nps : 'N/A';
+  bigEl.style.color = nps === null ? 'var(--text-muted)' : nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--warning)' : 'var(--danger)';
+
+  document.getElementById('nps-breakdown').innerHTML = n > 0 ? `
+    <div class="nps-pill promoter">✅ Promoteurs&nbsp;: ${prom} (${Math.round(prom/n*100)}%)</div>
+    <div class="nps-pill passive">😐 Passifs&nbsp;: ${pass} (${Math.round(pass/n*100)}%)</div>
+    <div class="nps-pill detractor">❌ Détracteurs&nbsp;: ${detr} (${Math.round(detr/n*100)}%)</div>
+  ` : '<p style="color:var(--text-muted);font-size:.85rem">Aucune donnée NPS</p>';
+
+  if (CHARTS.nps) CHARTS.nps.destroy();
+  const ctx = document.getElementById('npsChart').getContext('2d');
+  CHARTS.nps = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Promoteurs (9-10)', 'Passifs (7-8)', 'Détracteurs (0-6)'],
+      datasets: [{
+        data: n > 0 ? [prom, pass, detr] : [1, 0, 0],
+        backgroundColor: n > 0 ? ['#22c55e','#f59e0b','#ef4444'] : ['#e2e8f0','#e2e8f0','#e2e8f0'],
+        borderWidth: 3, borderColor: '#fff', hoverBorderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+        tooltip: {
+          callbacks: { label: c => `${c.label}: ${c.raw}${n > 0 ? ' (' + Math.round(c.raw/n*100) + '%)' : ''}` }
+        }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COMPÉTENCE CHART
+// ═══════════════════════════════════════════════════════════
+function renderCompetence(data) {
+  const avantVals = data.map(r => parseFloat(r[C.avant])).filter(v => !isNaN(v));
+  const apresVals = data.map(r => parseFloat(r[C.apres])).filter(v => !isNaN(v));
+
+  const distAvant = [0,0,0,0,0];
+  const distApres = [0,0,0,0,0];
+  avantVals.forEach(v => { if (v >= 1 && v <= 5) distAvant[Math.round(v)-1]++; });
+  apresVals.forEach(v => { if (v >= 1 && v <= 5) distApres[Math.round(v)-1]++; });
+
+  const mAvant = avg(avantVals);
+  const mApres = avg(apresVals);
+  const delta  = mAvant !== null && mApres !== null ? mApres - mAvant : null;
+
+  const deltaEl = document.getElementById('comp-delta');
+  if (delta !== null) {
+    const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+    const col   = delta > 0 ? 'var(--success)' : delta < 0 ? 'var(--danger)' : 'var(--text-muted)';
+    deltaEl.innerHTML = `Moyenne <b>avant</b>&nbsp;: ${fmtAvg(mAvant)}/5 &nbsp;→&nbsp; Moyenne <b>après</b>&nbsp;: ${fmtAvg(mApres)}/5
+      &nbsp;<span style="color:${col};font-weight:800">${arrow} ${delta > 0 ? '+' : ''}${fmtAvg(delta)} point${Math.abs(delta) > 1 ? 's' : ''}</span>`;
+  } else {
+    deltaEl.textContent = '';
+  }
+
+  if (CHARTS.comp) CHARTS.comp.destroy();
+  const ctx = document.getElementById('compChart').getContext('2d');
+  CHARTS.comp = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Niveau 1','Niveau 2','Niveau 3','Niveau 4','Niveau 5'],
+      datasets: [
+        { label: `Avant (moy. ${fmtAvg(mAvant)}/5)`, data: distAvant, backgroundColor: '#94a3b8', borderRadius: 5 },
+        { label: `Après (moy. ${fmtAvg(mApres)}/5)`, data: distApres, backgroundColor: '#059669', borderRadius: 5 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, padding: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SATISFACTION CHART
+// ═══════════════════════════════════════════════════════════
+const CRITS = [
+  { key: C.animation,  label: 'Animation / Formateur' },
+  { key: C.contenu,    label: 'Contenu pédagogique' },
+  { key: C.logistique, label: 'Logistique' },
+  { key: C.accueil,    label: 'Accueil présentiel' },
+  { key: C.outils,     label: 'Outils à distance' },
+];
+
+function renderSatisfaction(data) {
+  const labels  = CRITS.map(c => c.label);
+  const levels  = ['Très satisfaisant','Satisfaisant','Peu satisfaisant','Insatisfaisant'];
+  const colors  = ['#22c55e','#86efac','#fbbf24','#f87171'];
+
+  const datasets = levels.map((lvl, li) => ({
+    label: lvl,
+    data: CRITS.map(c => {
+      const rats = data.map(r => parseRating(r[c.key])).filter(v => v !== null);
+      if (!rats.length) return 0;
+      const target = 5 - li; // 5→très satisf, 4→satisf, 3→peu, 2-1→insatisf
+      let cnt;
+      if (li === 3) cnt = rats.filter(v => v <= 2).length;
+      else          cnt = rats.filter(v => v === target).length;
+      return Math.round(cnt / rats.length * 100);
+    }),
+    backgroundColor: colors[li],
+    stack: 'sat',
+    borderRadius: 0,
+  }));
+
+  if (CHARTS.sat) CHARTS.sat.destroy();
+  const ctx = document.getElementById('satChart').getContext('2d');
+  CHARTS.sat = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => `${c.dataset.label} : ${c.raw}%` } }
+      },
+      scales: {
+        x: { stacked: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } },
+        y: { stacked: true, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  WORD CLOUD
+// ═══════════════════════════════════════════════════════════
+const STOP_FR = new Set([
+  'le','la','les','de','du','des','un','une','et','est','en','au','aux','à','a',
+  'que','qui','je','il','elle','nous','vous','ils','elles','ce','se','sa','son',
+  'ses','ma','mon','mes','ta','ton','tes','si','mais','ou','donc','or','ni','car',
+  'par','pour','sur','dans','avec','sans','plus','tres','pas','ne','n','c','j',
+  'd','l','m','y','s','qu','me','te','lui','leur','leurs','tout','tous','toute',
+  'toutes','cette','cet','ces','ca','on','bien','ete','avoir','etre','faire',
+  'aussi','meme','comme','quand','dont','ou','apres','avant','lors','deja','peu',
+  'trop','cela','celui','celle','ceux','celles','votre','notre','entre','jusqua',
+  'alors','ainsi','depuis','chez','via','selon','des','ses','non','oui','tres',
+  'merci','bonjour','bonsoir','cest','cela','que','cette','même','très',
+  'jai','jai','cest','cest','na','na','je','je','mon','ma','mes','nos','vos',
+]);
+
+function tokenize(texts) {
+  const freq = {};
+  texts.forEach(t => {
+    if (!t) return;
+    String(t).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !STOP_FR.has(w) && !/^\d+$/.test(w))
+      .forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+  });
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 70)
+    .map(([text, count]) => ({ text, count }));
+}
+
+function drawCloud(words, canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.parentElement.clientWidth - 40;
+  const H   = Math.max(320, Math.min(420, W * 0.38));
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  if (!words.length) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '15px Segoe UI, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucun commentaire disponible pour cette sélection', W/2, H/2);
+    return;
+  }
+
+  const maxC   = words[0].count;
+  const colors = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#65a30d','#db2777','#ea580c','#0284c7'];
+  const placed = [];
+
+  for (let i = 0; i < words.length; i++) {
+    const { text, count } = words[i];
+    const t     = count / maxC;
+    const fsize = Math.round(12 + t * 50);
+    const bold  = t > 0.6 ? 'bold' : t > 0.3 ? '600' : 'normal';
+    ctx.font = `${bold} ${fsize}px 'Segoe UI', Arial, sans-serif`;
+    const tw = ctx.measureText(text).width + 6;
+    const th = fsize + 6;
+
+    let ang  = i === 0 ? 0 : Math.random() * Math.PI * 2;
+    let rad  = i === 0 ? 0 : 5;
+    let iter = 0;
+
+    while (rad < Math.max(W, H) * 0.55 && iter < 3500) {
+      iter++;
+      const cx = W / 2 + rad * Math.cos(ang) - tw / 2;
+      const cy = H / 2 + rad * Math.sin(ang) - th / 2;
+      const rc = { x: cx, y: cy, w: tw, h: th };
+
+      if (rc.x < 4 || rc.y < 4 || rc.x + rc.w > W - 4 || rc.y + rc.h > H - 4) {
+        ang += 0.4; rad += 0.5; continue;
+      }
+      const overlap = placed.some(p =>
+        !(rc.x > p.x + p.w + 3 || rc.x + rc.w < p.x - 3 || rc.y > p.y + p.h + 3 || rc.y + rc.h < p.y - 3)
+      );
+      if (!overlap) {
+        placed.push(rc);
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fillText(text, cx + 3, cy + fsize);
+        break;
+      }
+      ang += 0.35;
+      if (iter % 12 === 0) rad += 0.7;
+    }
+  }
+}
+
+function renderWordCloud(data) {
+  const texts = [
+    ...data.map(r => r[C.comments]),
+    ...data.map(r => r[C.remarques]),
+  ].filter(Boolean);
+  const words  = tokenize(texts);
+  const canvas = document.getElementById('wordCloudCanvas');
+  requestAnimationFrame(() => drawCloud(words, canvas));
+}
+
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    const f = applyFilters(ALL).filter(r => !isTrainer(r));
+    renderWordCloud(f);
+  }, 300);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  PARTICIPANT COMMENTS
+// ═══════════════════════════════════════════════════════════
+function renderComments(data) {
+  const items = data
+    .filter(r => r[C.comments])
+    .map(r => ({
+      text: String(r[C.comments]),
+      nom: r[C.nom] || 'Anonyme',
+      session: r[C.session],
+      formation: r[C.formation],
+      nps: parseFloat(r[C.nps]),
+    }));
+
+  const el = document.getElementById('comments-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="no-data"><div class="no-icon">💭</div><p>Aucun commentaire pour cette sélection.</p></div>';
+    return;
+  }
+
+  el.innerHTML = '<div class="comments-grid">' + items.map(c => {
+    const cat   = isNaN(c.nps) ? '' : c.nps >= 9 ? 'promoter' : c.nps >= 7 ? 'passive' : 'detractor';
+    const badge = isNaN(c.nps) ? '' : `<span class="comment-nps">${c.nps >= 9 ? '✅' : c.nps >= 7 ? '😐' : '❌'} ${c.nps}/10</span>`;
+    return `
+    <div class="comment-item ${cat}">
+      <div class="comment-meta">${esc(c.nom)} · Session ${esc(String(c.session || '?'))} · ${esc(c.formation || '')}${badge}</div>
+      <div class="comment-quote">${esc(c.text)}</div>
+    </div>
+  `;
+  }).join('') + '</div>';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TRAINER COMMENTS
+// ═══════════════════════════════════════════════════════════
+function getTrainerRows() {
+  const f = getFilters();
+  let trainerRows = ALL.filter(r => r[C.formateur]);
+  if (f.session.length) {
+    const sessSet = new Set(f.session.map(String));
+    trainerRows = trainerRows.filter(r => sessSet.has(String(r[C.session])));
+  }
+  if (f.formation) {
+    const validSessions = new Set(
+      ALL.filter(r => r[C.formation] === f.formation).map(r => String(r[C.session]))
+    );
+    trainerRows = trainerRows.filter(r => validSessions.has(String(r[C.session])));
+  }
+  if (f.qSession) {
+    trainerRows = trainerRows.filter(r => matchSessionQuery(r[C.session], f.qSession));
+  }
+  if (f.qFormation) {
+    const validSessions = new Set(
+      ALL.filter(r => matchFormationQuery(r[C.formation], f.qFormation)).map(r => String(r[C.session]))
+    );
+    trainerRows = trainerRows.filter(r => validSessions.has(String(r[C.session])));
+  }
+  return trainerRows;
+}
+
+function renderTrainers(filtered) {
+  const trainerRows = getTrainerRows();
+
+  const grid = document.getElementById('trainer-grid');
+  if (!trainerRows.length) {
+    grid.innerHTML = '<div class="no-data" style="width:100%"><div class="no-icon">📋</div><p>Aucun compte-rendu formateur pour cette sélection.</p></div>';
+    return;
+  }
+
+  grid.innerHTML = trainerRows.map(r => {
+    const date = fmtDate(r[C.debut]);
+    return `
+      <div class="trainer-card">
+        <div class="trainer-header">
+          <div class="trainer-name">📝 ${esc(r[C.nom] || 'Formateur')}</div>
+          <div class="trainer-meta">
+            ${r[C.session] ? `<span class="trainer-badge">Session ${esc(String(r[C.session]))}</span>` : ''}
+            ${date         ? `<span class="trainer-badge green">${esc(date)}</span>` : ''}
+          </div>
+        </div>
+        <div class="trainer-comment">${esc(String(r[C.formateur]))}</div>
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UTIL
+// ═══════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  COLUMN AUTO-DETECTION (robust, handles   variants)
+// ═══════════════════════════════════════════════════════════
+function autoDetectCols(rows) {
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const norm = h => h.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const find = (...kws) => headers.find(h => kws.some(kw => norm(h).includes(norm(kw)))) || null;
+
+  const detected = {
+    debut:        find('heure de debut'),
+    nom:          find('nom et prenom', 'nom prenom'),
+    session:      find('n° de la session', 'numero de la session'),
+    formation:    find("intitule exact", "intitule de votre formation", "intitule"),
+    modalites:    find('modalites', 'modalite de la formation'),
+    thematique:   find('thematique'),
+    augmentation: find('augmenter vos competences', 'augmenter vos connaissances', 'augmenter'),
+    avant:        find('avant cette formation', 'avant votre niveau', 'niveau avant'),
+    apres:        find('apres cette formation', 'apres votre niveau', 'niveau apres'),
+    logistique:   find('logistique'),
+    animation:    find('animation'),
+    contenu:      find('contenu de la formation', 'contenu'),
+    outils:       find('formations a distance', 'outils utilises'),
+    accueil:      find('formations en presentiel', 'accueil, les repas', 'en presentiel'),
+    nps:          find('recommanderiez', 'collegue'),
+    comments:     find('tops, flops', 'coup de coeur', 'commentaires (tops'),
+    formateur:    find('commentaires formateurs'),
+    remarques:    find('remarques a faire'),
+  };
+
+  for (const [key, val] of Object.entries(detected)) {
+    if (val) C[key] = val;
+  }
+  console.log('[AutoDetect] Colonnes détectées:', JSON.stringify(C, null, 2));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LOGO (localStorage pour persistance)
+// ═══════════════════════════════════════════════════════════
+const LOGO_LS = 'dashboard_logo_b64';
+
+const DEFAULT_LOGO = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBj/wAARCAEkAfQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD7+ooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAopCwzjv6VyPjP4o/D/4e2a3PjTxfpGiq2Qi3dwqu5AzhU+8T+FAHX00uoOCefSvjL4kf8FDPAOhq1p8O9DvPE91/wA/VzutLZTn3+dvwAFfJvjn9sf47+OIJrSXxZ/YtjKGVrXRoRbAqexflj9cigD9V/E3xK8BeDUZvFPjDRdJK9Uu7tEcf8Azu/SuCP7V/wCz0r7T8VdBznGQZSPz2V+OF1fXd9cvc3txLczOctLM5dj9ScmovNcDAdvzoA/cHwx8ZPhb4zIXwz4+8P6jIWCiOK8QOT7K2CfwFdwHXOCcH0NfgPFNJDKssTtG6ncHU4YH1BHIr2DwF+1H8bvh1DFaaF42u7iwjJK2OpgXcXPb5/mH4GgD9mqK+FPhn/wUT0O8W30/4peGJ9MmOFfU9JzND0+80R+Yc9lzX1T4D+N/ws+JSqvg3xtpOo3BXebQTCO4UZ7xNhqAPQqKQMPX86WgAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACikLAdTWP4i8VeHPCWjy6r4m1qw0mzjUs097OsS4HXGev4UAbNIWAGSa+TfHX7f3wh8Nzz2fhm01XxXcxOUElsgt7Z/cSPyR9Fr5U+IP7dfxq8XTSw+H7618JaewwsWmR7ph7mZ8tn6YFAH6deL/Hvg/wForar4w8R6dotqASHvJghfHZV6sfYAmvmTx7/wAFB/hVoNvLB4L0vVPFV6DhXK/Y7Y++9st+G2vzV17xLr3ijWJtV8RaxfarezMXkuL2dpXY+pJNZRJJyTQB9EfED9tL45+OLmVLTxGPDOntkLZ6KnlHHvKcuT7gj6V4JqOq6jq+pTahqt/c313M26S4uZWlkc+pZsk1SooACSepooooAKKKKACiiigAzip7e7ubS6jubWeSCeM7kliYqyEdCCOQagooA9z8Bftc/HTwFcQLbeM7jWbGLrYa2PtUbj0LH5x+DV9b/Dn/AIKIeBdXtYbX4jeHr/w/e8K91Yj7VbN744dPphvrX5q0AkHIoA/czwN8Vvh58SdPW78EeLdM1hSu4xQSgTIOnzRHDr+IrsQwNfgfpur6no+pR6hpV/c2N3EdyXFtK0bqfUMDmvoPwF+278dPBs8Ueoa9F4osU4NtrMfmMw7fvVw4/OgD9bqK+O/An/BQn4Ya4sVv4z0bVvDN021XmVRd2+TwTlcMq/UGvqPwp458I+ONITU/CXiPTdZtXXcJLKcSYHuo5X8QKAOhopAwboaWgAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACijOBVa8v7PT7CW9vrqG1tolLSTzuI0QepY8AUAWaQkAcmvnD4i/ttfBHwHcSWFpq9z4ov03BodEjEka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';
+
+(function initLogo() {
+  let saved = null;
+  try { saved = localStorage.getItem(LOGO_LS); } catch (_) {}
+  saved = saved || DEFAULT_LOGO;   // logo Académie Fnac Darty par défaut
+  if (saved) {
+    const img = document.getElementById('logo-img');
+    img.src = saved; img.style.display = 'block';
+  }
+})();
+
+document.getElementById('logo-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    const b64 = evt.target.result;
+    try { localStorage.setItem(LOGO_LS, b64); } catch(_) {}
+    const img = document.getElementById('logo-img');
+    img.src = b64; img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+// ═══════════════════════════════════════════════════════════
+//  EXPORT PDF — rapport A4 dédié, construit à la volée
+// ═══════════════════════════════════════════════════════════
+function npsVerdict(nps) {
+  if (nps === null) return { txt: 'Non disponible', col: '#64748b', bg: '#f1f5f9', num: '#64748b' };
+  if (nps >= 50)    return { txt: 'Excellent',      col: '#166534', bg: '#dcfce7', num: '#059669' };
+  if (nps >= 0)     return { txt: 'Positif',        col: '#92400e', bg: '#fef3c7', num: '#d97706' };
+  return                   { txt: 'À améliorer',    col: '#991b1b', bg: '#fee2e2', num: '#dc2626' };
+}
+
+function canvasImg(id) {
+  try { return document.getElementById(id).toDataURL('image/png'); } catch (_) { return ''; }
+}
+
+// Capture un graphique Chart.js avec des polices agrandies : l'image est ensuite
+// réduite pour tenir sur la page A4, le texte resterait sinon illisible.
+function chartImg(key, canvasId, fontSize) {
+  const ch = CHARTS[key];
+  if (!ch) return canvasImg(canvasId);
+  const prev = Chart.defaults.font.size;
+  const legendFont = ch.options.plugins.legend.labels.font;
+  Chart.defaults.font.size = fontSize;
+  ch.options.plugins.legend.labels.font = { size: fontSize };
+  ch.config.update && ch.config.update();   // vide le cache de résolution des options
+  ch.update('none');
+  const url = canvasImg(canvasId);
+  Chart.defaults.font.size = prev;
+  ch.options.plugins.legend.labels.font = legendFont;
+  ch.config.update && ch.config.update();
+  ch.update('none');
+  return url;
+}
+
+function buildPrintReport(sel = {}) {
+  const on = k => sel[k] !== false;
+  const filtered = applyFilters(ALL);
+  const data     = filtered.filter(r => !isTrainer(r));
+  const f        = getFilters();
+  const txt      = id => document.getElementById(id).textContent;
+  const fr1      = v => v.toFixed(1).replace('.', ',');
+  const now      = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  // ── Logo
+  const logo = document.getElementById('logo-img');
+  const logoHtml = (logo && logo.style.display !== 'none' && logo.getAttribute('src'))
+    ? `<div class="pr-logo"><img src="${logo.src}" alt=""></div>` : '';
+
+  // ── Filtres appliqués
+  const chips = [
+    f.session.length ? [f.session.length > 1 ? 'Sessions' : 'Session', f.session.join(', ')] : ['', 'Toutes les sessions'],
+    f.formation      ? ['Formation', f.formation]   : ['', 'Toutes les formations'],
+    f.thematique     ? ['Thématique', f.thematique] : ['', 'Toutes les thématiques'],
+    f.qSession       ? ['Recherche n° session', f.qSession] : null,
+    f.qFormation     ? ['Recherche formation', f.qFormation] : null,
+  ].filter(Boolean).map(([k, v]) => `<span class="pr-chip">${k ? `<b>${k}</b>` : ''}${esc(v)}</span>`).join('');
+
+  // ── NPS
+  const sc   = data.map(r => parseFloat(r[C.nps])).filter(v => !isNaN(v));
+  const n    = sc.length;
+  const prom = sc.filter(v => v >= 9).length;
+  const pass = sc.filter(v => v === 7 || v === 8).length;
+  const detr = sc.filter(v => v <= 6).length;
+  const nps  = n ? Math.round((prom / n - detr / n) * 100) : null;
+  const vd   = npsVerdict(nps);
+  const pct  = x => n ? Math.round(x / n * 100) : 0;
+  const w    = x => n ? (x / n * 100).toFixed(2) : 0;
+
+  // ── Compétences
+  const avV = data.map(r => parseFloat(r[C.avant])).filter(v => !isNaN(v));
+  const apV = data.map(r => parseFloat(r[C.apres])).filter(v => !isNaN(v));
+  const mAv = avg(avV), mAp = avg(apV);
+  const delta = (mAv !== null && mAp !== null) ? mAp - mAv : null;
+  let deltaHtml = '';
+  if (delta !== null) {
+    const col = delta > 0 ? '#059669' : delta < 0 ? '#dc2626' : '#64748b';
+    const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+    deltaHtml = `<span style="white-space:nowrap">Moyenne <b>avant</b>&nbsp;: ${fr1(mAv)}/5</span> &nbsp;→&nbsp;
+      <span style="white-space:nowrap">Moyenne <b>après</b>&nbsp;: ${fr1(mAp)}/5</span>
+      <b style="color:${col};white-space:nowrap">&nbsp;${arrow}&nbsp;${delta > 0 ? '+' : ''}${fr1(delta)}&nbsp;pt</b>`;
+  }
+
+  // ── Satisfaction par critère
+  const rows = CRITS.map(c => {
+    const rats = data.map(r => parseRating(r[c.key])).filter(v => v !== null);
+    return { label: c.label, n: rats.length, mean: avg(rats),
+             ok: rats.length ? Math.round(rats.filter(v => v >= 4).length / rats.length * 100) : null };
+  }).filter(r => r.n > 0);
+
+  // ── Lecture rapide
+  const insights = [];
+  if (n) insights.push(`<b>NPS de ${nps > 0 ? '+' : ''}${nps}</b> (${vd.txt.toLowerCase()}) sur ${n} réponse${n > 1 ? 's' : ''} : ${pct(prom)}&nbsp;% de promoteurs, ${pct(pass)}&nbsp;% de passifs, ${pct(detr)}&nbsp;% de détracteurs.`);
+  if (delta !== null) insights.push(`<b>Progression des compétences</b> : de ${fr1(mAv)} à ${fr1(mAp)} sur 5 (${delta > 0 ? '+' : ''}${fr1(delta)} point${Math.abs(delta) > 1 ? 's' : ''}).`);
+  if (rows.length >= 2) {
+    const sorted = [...rows].sort((a, b) => b.mean - a.mean);
+    const best = sorted[0], worst = sorted[sorted.length - 1];
+    insights.push(`<b>Critère le mieux noté</b> : ${esc(best.label)} (${fr1(best.mean)}/5) · <b>le moins bien noté</b> : ${esc(worst.label)} (${fr1(worst.mean)}/5).`);
+  }
+
+  // ── KPI
+  const kpis = [
+    { icon: '👥', val: txt('kpi-n'),    label: 'Réponses participants',          sub: txt('kpi-n-sub'),    col: '#2563eb', vcol: '' },
+    { icon: '🎯', val: txt('kpi-nps'),  label: 'Score NPS',                      sub: txt('kpi-nps-sub'),  col: '#059669', vcol: vd.num },
+    { icon: '📈', val: txt('kpi-comp'), label: 'Ont progressé en compétences',   sub: txt('kpi-comp-sub'), col: '#d97706', vcol: '' },
+    { icon: '⭐', val: txt('kpi-sat'),  label: 'Satisfaction moyenne globale',   sub: 'Animation · Contenu · Logistique · Accueil', col: '#7c3aed', vcol: '' },
+  ].map(k => `
+    <div class="pr-kpi" style="border-top-color:${k.col}">
+      <div class="pr-kpi-val" ${k.vcol ? `style="color:${k.vcol}"` : ''}>${esc(k.val)}</div>
+      <div class="pr-kpi-label">${k.icon} ${k.label}</div>
+      <div class="pr-kpi-sub">${esc(k.sub)}</div>
+    </div>`).join('');
+
+  // ── Commentaires participants
+  const comments = data.filter(r => r[C.comments]).map(r => {
+    const s   = parseFloat(r[C.nps]);
+    const cat = isNaN(s) ? '' : s >= 9 ? 'promoter' : s >= 7 ? 'passive' : 'detractor';
+    const pill = isNaN(s) ? '' : `<span class="pr-pill">${s >= 9 ? '✅' : s >= 7 ? '😐' : '❌'} ${s}/10</span>`;
+    return `
+    <div class="pr-comment ${cat}">
+      <div class="pr-comment-meta">${esc(r[C.nom] || 'Anonyme')} · Session ${esc(String(r[C.session] || '?'))} · ${esc(r[C.formation] || '')} ${pill}</div>
+      <div class="pr-comment-quote">${esc(String(r[C.comments]))}</div>
+    </div>`;
+  });
+
+  // ── Comptes-rendus formateurs
+  const trainers = getTrainerRows().map(r => {
+    const date = fmtDate(r[C.debut]);
+    return `
+    <div class="pr-trainer">
+      <div class="pr-trainer-head">
+        <div class="pr-trainer-name">📝 ${esc(r[C.nom] || 'Formateur')}</div>
+        <div>
+          ${r[C.session] ? `<span class="pr-badge">Session ${esc(String(r[C.session]))}</span>` : ''}
+          ${date ? `<span class="pr-badge green">${esc(date)}</span>` : ''}
+        </div>
+      </div>
+      <div class="pr-trainer-text">${esc(String(r[C.formateur]))}</div>
+    </div>`;
+  });
+
+  const levels = [['#22c55e', 'Très satisfaisant'], ['#86efac', 'Satisfaisant'], ['#fbbf24', 'Peu satisfaisant'], ['#f87171', 'Insatisfaisant']];
+
+  // Numérotation dynamique des sections retenues
+  let num = 0;
+  const h2 = (title, extra = '') => `<div class="pr-h2"><span class="pr-num">${++num}</span>${title}${extra}</div>`;
+
+  const showNps = on('nps'), showComp = on('comp');
+  let part1 = '';
+  if (showNps || showComp) {
+    const title = showNps && showComp ? 'Recommandation et progression' : showNps ? 'Recommandation (NPS)' : 'Progression des compétences';
+    const npsCard = `
+    <div class="pr-card">
+      <h3>Net Promoter Score</h3>
+      <div class="pr-card-sub">« Recommanderiez-vous cette formation à un collègue ? » (0–10)</div>
+      <div class="pr-nps-head">
+        <div class="pr-nps-score" style="color:${vd.num}">${nps === null ? 'N/A' : (nps > 0 ? '+' : '') + nps}</div>
+        <div>
+          <span class="pr-verdict" style="background:${vd.bg};color:${vd.col}">${vd.txt}</span>
+          <div class="pr-nps-formula">% promoteurs (9–10) − % détracteurs (0–6)</div>
+        </div>
+      </div>
+      ${n ? `
+      <div class="pr-stack">
+        <span style="width:${w(prom)}%;background:#22c55e"></span>
+        <span style="width:${w(pass)}%;background:#f59e0b"></span>
+        <span style="width:${w(detr)}%;background:#ef4444"></span>
+      </div>
+      <div class="pr-nps-boxes">
+        <div class="pr-nps-box prom"><b>${prom}</b><span>Promoteurs</span><span class="pr-pc">${pct(prom)}&nbsp;%</span></div>
+        <div class="pr-nps-box pass"><b>${pass}</b><span>Passifs</span><span class="pr-pc">${pct(pass)}&nbsp;%</span></div>
+        <div class="pr-nps-box detr"><b>${detr}</b><span>Détracteurs</span><span class="pr-pc">${pct(detr)}&nbsp;%</span></div>
+      </div>` : '<div class="pr-empty">Aucune donnée NPS pour cette sélection.</div>'}
+    </div>`;
+    const compCard = `
+    <div class="pr-card">
+      <h3>Progression des compétences</h3>
+      <div class="pr-card-sub">Niveau auto-évalué avant et après la formation (échelle 1 à 5)</div>
+      <img class="pr-chart-img" src="${chartImg('comp', 'compChart', 20)}" alt="">
+      <div class="pr-delta">${deltaHtml}</div>
+    </div>`;
+    part1 = h2(title) + `<div class="pr-grid2${showNps && showComp ? '' : ' single'}">${showNps ? npsCard : ''}${showComp ? compCard : ''}</div>`;
+  }
+
+  // La satisfaction démarre une nouvelle page seulement si la page 1 est déjà bien remplie
+  const breakBeforeSat = (showNps && showComp) ? ' pr-pagebreak' : '';
+  const partSat = on('sat') ? `
+  <div class="${breakBeforeSat.trim()}">
+    ${h2('Satisfaction par critère')}
+    <div class="pr-card">
+      <div class="pr-card-sub" style="margin-top:0">Répartition des niveaux de satisfaction pour chaque critère évalué</div>
+      <div class="pr-legend">${levels.map(([c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>
+      <img class="pr-chart-img" src="${chartImg('sat', 'satChart', 22)}" alt="">
+      ${rows.length ? `
+      <table class="pr-table">
+        <thead><tr><th>Critère</th><th style="text-align:center">Réponses</th><th style="text-align:center">Moyenne</th><th style="width:38%">Satisfaits (note 4 et 5)</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td><b>${esc(r.label)}</b></td>
+            <td class="num">${r.n}</td>
+            <td class="num">${fr1(r.mean)}/5</td>
+            <td><div class="pr-bar"><div class="pr-bar-track"><div class="pr-bar-fill" style="width:${r.ok}%"></div></div><em>${r.ok}&nbsp;%</em></div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : ''}
+    </div>
+  </div>` : '';
+
+  const partCloud = on('cloud') ? `
+  ${h2('Thèmes qui reviennent')}
+  <div class="pr-card">
+    <div class="pr-card-sub" style="margin-top:0">Termes les plus fréquents dans les retours libres des participants</div>
+    <div class="pr-cloud"><img class="pr-chart-img" src="${canvasImg('wordCloudCanvas')}" alt=""></div>
+  </div>` : '';
+
+  const partComments = on('comments') ? `
+  ${h2('Commentaires des participants', `<span class="pr-count">${comments.length} commentaire${comments.length > 1 ? 's' : ''}</span>`)}
+  ${comments.length ? comments.join('') : '<div class="pr-empty">Aucun commentaire pour cette sélection.</div>'}` : '';
+
+  const partTrainers = on('trainers') ? `
+  ${h2('Comptes-rendus formateurs', `<span class="pr-count">${trainers.length} compte${trainers.length > 1 ? 's' : ''}-rendu${trainers.length > 1 ? 's' : ''}</span>`)}
+  ${trainers.length ? trainers.join('') : '<div class="pr-empty">Aucun compte-rendu formateur pour cette sélection.</div>'}` : '';
+
+  return `
+  <div class="pr-cover">
+    <div class="pr-cover-top">
+      ${logoHtml}
+      <div class="pr-titles">
+        <div class="pr-eyebrow">Rapport qualité · Qualiopi</div>
+        <h1>Évaluation des formations</h1>
+        <div class="pr-sub">Satisfaction, recommandation (NPS) et progression des compétences</div>
+      </div>
+      <div class="pr-date"><b>Généré le</b>${now}</div>
+    </div>
+    <div class="pr-chips">${chips}</div>
+  </div>
+
+  ${on('kpis') ? `<div class="pr-kpis">${kpis}</div>` : '<div style="height:12px"></div>'}
+
+  ${on('insights') && insights.length ? `<div class="pr-insights"><h3>Lecture rapide</h3><ul>${insights.map(i => `<li>${i}</li>`).join('')}</ul></div>` : ''}
+
+  ${part1}
+  ${partSat}
+  ${partCloud}
+  ${partComments}
+  ${partTrainers}
+
+  <div class="pr-end">— Fin du rapport · généré le ${now} —</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHOIX DES SECTIONS À EXPORTER
+// ═══════════════════════════════════════════════════════════
+const EXPORT_SECTIONS = [
+  { key: 'kpis',     label: 'Indicateurs clés',              hint: () => '4 chiffres : réponses, NPS, progression, satisfaction' },
+  { key: 'insights', label: 'Lecture rapide',                hint: () => 'Synthèse en quelques phrases' },
+  { key: 'nps',      label: 'Net Promoter Score',            hint: () => 'Score, verdict et répartition' },
+  { key: 'comp',     label: 'Progression des compétences',   hint: () => 'Niveau avant / après' },
+  { key: 'sat',      label: 'Satisfaction par critère',      hint: () => 'Graphique et tableau détaillé' },
+  { key: 'cloud',    label: 'Nuage de mots',                 hint: () => 'Thèmes récurrents des commentaires' },
+  { key: 'comments', label: 'Commentaires des participants', hint: () => applyFilters(ALL).filter(r => !isTrainer(r) && r[C.comments]).length + ' commentaire(s)' },
+  { key: 'trainers', label: 'Comptes-rendus formateurs',     hint: () => getTrainerRows().length + ' compte(s)-rendu(s)' },
+];
+const EXPORT_LS = 'dashboard_export_sections';
+
+function loadExportSel() {
+  try { const v = JSON.parse(localStorage.getItem(EXPORT_LS)); if (v && typeof v === 'object') return v; } catch (_) {}
+  return {};
+}
+
+function openExportDialog() {
+  let ov = document.getElementById('export-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'export-overlay';
+    ov.className = 'exp-overlay';
+    ov.addEventListener('click', e => { if (e.target === ov) closeExportDialog(); });
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeExportDialog(); });
+  }
+  const sel = loadExportSel();
+  ov.innerHTML = `
+    <div class="exp-modal" role="dialog" aria-modal="true" aria-labelledby="exp-title">
+      <h2 id="exp-title">🖨️ Exporter le rapport PDF</h2>
+      <p class="exp-lead">Choisissez les sections à inclure dans le rapport.</p>
+      <div class="exp-tools">
+        <button type="button" class="exp-link" data-all="1">Tout cocher</button>
+        <button type="button" class="exp-link" data-all="0">Tout décocher</button>
+      </div>
+      <div class="exp-list">
+        ${EXPORT_SECTIONS.map(s => `
+        <label class="exp-opt">
+          <input type="checkbox" value="${s.key}" ${sel[s.key] === false ? '' : 'checked'}>
+          <span><b>${s.label}</b><small>${esc(s.hint())}</small></span>
+        </label>`).join('')}
+      </div>
+      <div class="exp-actions">
+        <button type="button" class="btn-reset" id="exp-cancel">Annuler</button>
+        <button type="button" class="btn-primary exp-go" id="exp-go">Générer le PDF</button>
+      </div>
+    </div>`;
+  const boxes = () => [...ov.querySelectorAll('.exp-list input')];
+  const refresh = () => { document.getElementById('exp-go').disabled = !boxes().some(b => b.checked); };
+  boxes().forEach(b => b.addEventListener('change', refresh));
+  ov.querySelectorAll('[data-all]').forEach(btn => btn.addEventListener('click', () => {
+    boxes().forEach(b => b.checked = btn.dataset.all === '1'); refresh();
+  }));
+  document.getElementById('exp-cancel').addEventListener('click', closeExportDialog);
+  document.getElementById('exp-go').addEventListener('click', () => {
+    const chosen = {};
+    boxes().forEach(b => chosen[b.value] = b.checked);
+    try { localStorage.setItem(EXPORT_LS, JSON.stringify(chosen)); } catch (_) {}
+    closeExportDialog();
+    runExport(chosen);
+  });
+  refresh();
+  ov.classList.add('open');
+}
+
+function closeExportDialog() {
+  const ov = document.getElementById('export-overlay');
+  if (ov) ov.classList.remove('open');
+}
+
+// Le bouton « Exporter PDF » ouvre d'abord le choix des sections
+function exportPDF() { openExportDialog(); }
+
+async function runExport(sel) {
+  const root = document.getElementById('print-report');
+  root.innerHTML = buildPrintReport(sel);
+
+  // Le nom du fichier PDF proposé par le navigateur = titre de la page
+  const prevTitle = document.title;
+  document.title = 'Rapport_NPS_Qualiopi_' + new Date().toISOString().slice(0, 10);
+  const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
+
+  // Attend que les images (graphiques) soient décodées avant d'imprimer
+  try {
+    await Promise.all([...root.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => {}) : null));
+  } catch (_) {}
+  window.print();
+}
+
+</script>
+</body>
+</html>
